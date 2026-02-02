@@ -8,15 +8,15 @@ import (
 )
 
 type Db struct {
-	conn *pgxpool.Pool
+	Conn *pgxpool.Pool
 }
 
-func NewDb(ctx context.Context) (*Db, error) {
+func Connection(ctx context.Context) (*Db, error) {
 	pool, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Db{conn: pool}, nil
+	return &Db{Conn: pool}, nil
 }

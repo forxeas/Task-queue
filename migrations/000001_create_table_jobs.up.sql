@@ -1,6 +1,6 @@
 CREATE TYPE jobs_status AS ENUM ('pending', 'failed', 'done', 'in_progressed');
 
-CREATE TABLE jobs
+CREATE TABLE IF NOT EXISTS jobs
 (
     id SERIAL PRIMARY KEY,
     type TEXT NOT NULL,
