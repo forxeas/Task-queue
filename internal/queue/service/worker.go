@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"task-queue/internal/queue/repository"
 	"task-queue/internal/queue/repository/models"
+	"time"
 )
 
 type Worker struct {
@@ -12,7 +14,41 @@ type Worker struct {
 }
 
 func (w Worker) Start(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case job := <-w.ch:
+			if err := w.HandleJob(int64(*job.Id)); err == nil {
+				if err := w.repo.MarkJobSuccess(ctx, int64(*job.Id)); err != nil {
+					panic(err)
+				}
 
+			}
+
+			attempts := job.Attempts + 1
+
+			if attempts >= job.MaxAttempts {
+				if err := w.repo.MarkJobFailed(ctx, int64(*job.Id)); err != nil {
+					panic(err)
+				}
+			}
+
+			retry := job.AvailableAt.Add(10 * time.Second)
+
+			if err := w.repo.MarkJobRetry(ctx, int64(*job.Id), attempts, retry); err != nil {
+				panic(err)
+			}
+		}
+	}
+}
+
+func (w Worker) HandleJob(id int64) error {
+	if id%3 == 0 {
+		return errors.New("failed to job")
+	}
+
+	return nil
 }
 
 /*

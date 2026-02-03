@@ -5,6 +5,7 @@ import (
 	"task-queue/internal/db"
 	"task-queue/internal/queue/repository/models"
 	"task-queue/internal/queue/transport/dto/request"
+	"time"
 )
 
 type Repository struct {
@@ -74,4 +75,61 @@ func (r *Repository) UpdateJob(ctx context.Context, model models.Jobs) (*models.
 	return &model, err
 }
 
-// Нужно добавить селект для того чтобы диспатчер клал их в канал для воркеров
+func (r *Repository) SelectJobs(ctx context.Context) ([]*models.Jobs, error) {
+	jobs := make([]*models.Jobs, 0)
+	sql := `SELECT * FROM jobs 
+         	WHERE status = $1 AND available_at <= now()
+         	ORDER BY created_at
+         	LIMIT 100
+         	FOR UPDATE SKIP LOCKED`
+
+	rows, err := r.Db.Conn.Query(ctx, sql, models.StatusPending)
+
+	if err != nil {
+		return jobs, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var job models.Jobs
+
+		if err := rows.Scan(
+			&job.Id,
+			&job.Type,
+			&job.Status,
+			&job.Payload,
+			&job.Attempts,
+			&job.MaxAttempts,
+			&job.AvailableAt,
+			&job.CreatedAt,
+			&job.UpdatedAt,
+		); err != nil {
+			return jobs, err
+		}
+
+		jobs = append(jobs, &job)
+	}
+
+	return jobs, nil
+}
+
+func (r *Repository) MarkJobSuccess(ctx context.Context, id int64) error {
+	sql := `UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2`
+
+	cmd, err := r.Db.Conn.Exec(ctx, sql, models.StatusDone, id)
+	return checkErr(cmd, err)
+}
+
+func (r *Repository) MarkJobFailed(ctx context.Context, id int64) error {
+	sql := `UPDATE jobs SET status = $1 WHERE id = $2`
+
+	cmd, err := r.Db.Conn.Exec(ctx, sql, models.StatusFailed, id)
+	return checkErr(cmd, err)
+}
+
+func (r *Repository) MarkJobRetry(ctx context.Context, id int64, attempts int, availableAt time.Time) error {
+	sql := `UPDATE jobs SET attempts = $1, available_at = $2 WHERE id = $3`
+
+	cmd, err := r.Db.Conn.Exec(ctx, sql, attempts, availableAt, id)
+	return checkErr(cmd, err)
+}
