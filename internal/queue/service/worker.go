@@ -13,6 +13,10 @@ type Worker struct {
 	ch   <-chan models.Jobs
 }
 
+func NewWorker(repo repository.Repository, ch chan models.Jobs) *Worker {
+	return &Worker{repo: repo, ch: ch}
+}
+
 func (w Worker) Start(ctx context.Context) {
 	for {
 		select {
