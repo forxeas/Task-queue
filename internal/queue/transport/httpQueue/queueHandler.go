@@ -1,5 +1,0 @@
-package httpQueue
-
-func queueRouter() {
-
-}

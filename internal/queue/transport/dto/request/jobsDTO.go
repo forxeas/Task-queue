@@ -14,7 +14,6 @@ type JobsDTO struct {
 }
 
 func NewJobs(
-	id int,
 	typePayload string,
 	payload json.RawMessage,
 	maxAttempts *int,

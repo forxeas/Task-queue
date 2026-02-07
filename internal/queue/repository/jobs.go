@@ -113,6 +113,26 @@ func (r *Repository) SelectJobs(ctx context.Context) ([]*models.Jobs, error) {
 	return jobs, nil
 }
 
+func (r *Repository) SelectFromId(ctx context.Context, id int64) (*models.Jobs, error) {
+	var job models.Jobs
+
+	sql := `SELECT id, type, status, payload, created_at, updated_at FROM jobs WHERE id = $1`
+
+	if err := r.Db.Conn.QueryRow(ctx, sql, id).
+		Scan(
+			&job.Id,
+			&job.Type,
+			&job.Status,
+			&job.Payload,
+			&job.CreatedAt,
+			&job.UpdatedAt,
+		); err != nil {
+		return nil, err
+	}
+
+	return &job, nil
+}
+
 func (r *Repository) MarkJobSuccess(ctx context.Context, id int64) error {
 	sql := `UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2`
 
