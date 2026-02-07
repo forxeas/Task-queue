@@ -2,10 +2,13 @@ package repository
 
 import (
 	"context"
+	"log/slog"
 	"task-queue/internal/db"
 	"task-queue/internal/queue/repository/models"
 	"task-queue/internal/queue/transport/dto/request"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Repository struct {
@@ -21,7 +24,7 @@ func (r *Repository) CreateJob(ctx context.Context, dto request.JobsDTO) (*model
 
 	sql := `INSERT INTO jobs (type, payload, max_attempts) 
 			VALUES ($1, $2, $3) 
-        	RETURNING id, type, payload, attempts, max_attempts, available_at, created_at, updated_at`
+        	RETURNING id, type, status, payload, attempts, max_attempts, available_at, created_at, updated_at`
 
 	err := r.Db.Conn.QueryRow(ctx, sql, dto.Type, dto.Payload, dto.MaxAttempts).
 		Scan(
@@ -49,7 +52,7 @@ func (r *Repository) UpdateJob(ctx context.Context, model models.Jobs) (*models.
 			    available_at = $6, 
 			    updated_at = $7
 			WHERE id = $8
-			RETURNING id, type, payload, attempts, max_attempts, available_at, created_at, updated_at`
+			RETURNING id, type, status, payload, attempts, max_attempts, available_at, created_at, updated_at`
 
 	err := r.Db.Conn.QueryRow(
 		ctx,
@@ -76,6 +79,14 @@ func (r *Repository) UpdateJob(ctx context.Context, model models.Jobs) (*models.
 }
 
 func (r *Repository) SelectJobs(ctx context.Context) ([]*models.Jobs, error) {
+	tx, err := r.Db.Conn.Begin(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		err := tx.Rollback(ctx)
+		if err != nil {
+			slog.Error(err.Error())
+		}
+	}(tx, ctx)
+
 	jobs := make([]*models.Jobs, 0)
 	sql := `SELECT * FROM jobs 
          	WHERE status = $1 AND available_at <= now()
@@ -108,6 +119,10 @@ func (r *Repository) SelectJobs(ctx context.Context) ([]*models.Jobs, error) {
 		}
 
 		jobs = append(jobs, &job)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 
 	return jobs, nil

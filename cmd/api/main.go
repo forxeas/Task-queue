@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -33,13 +34,14 @@ func main() {
 	dispatcher := service.NewDispatcher(ch, repo)
 	worker := service.NewWorker(repo, ch)
 
-	dispatcher.Start(ctx)
-	worker.Start(ctx)
+	go dispatcher.Start(ctx)
+	go worker.Start(ctx)
 
 	router := core.NewRouter(handlerQueue)
 
-	if err := server.Start(ctx, os.Getenv("PORT"), *router); err != nil {
-		slog.Error(err.Error())
+	if err := server.Start(ctx, os.Getenv("PORT"), router); err != nil {
+		slog.Error(err.Error(), "from server start")
 		return
 	}
+	fmt.Println("graceful shutdown")
 }

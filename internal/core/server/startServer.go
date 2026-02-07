@@ -8,9 +8,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func Start(ctx context.Context, addr string, router mux.Router) error {
+func Start(ctx context.Context, addr string, router *mux.Router) error {
 	server := &http.Server{
-		Addr: addr, Handler: &router,
+		Addr: addr, Handler: router,
 	}
 
 	go func() {

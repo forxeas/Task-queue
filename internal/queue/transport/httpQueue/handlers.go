@@ -26,22 +26,26 @@ func NewHandler(ctx context.Context, Repo *repository.Repository) *Handler {
 func (h *Handler) RegisterRoute(r *mux.Router) {
 	jobs := r.PathPrefix("/jobs").Subrouter()
 
-	jobs.HandleFunc("", h.AddNewTask)
-	jobs.HandleFunc("/{id}", h.GetJob)
+	jobs.HandleFunc("", h.AddNewTask).Methods("POST")
+	jobs.HandleFunc("/{id}", h.GetJob).Methods("GET")
 }
 
 func (h *Handler) AddNewTask(w http.ResponseWriter, r *http.Request) {
 	var job request.JobsDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
-		slog.Warn(err.Error())
-		return
+		if err := helper.WriteJsonError(w, err, 500); err != nil {
+			slog.Warn(err.Error())
+			return
+		}
 	}
 
 	reqJob, err := h.Repo.CreateJob(h.Ctx, job)
 
 	if err != nil {
-		slog.Warn(err.Error())
+		if err := helper.WriteJsonError(w, err, 500); err != nil {
+			slog.Warn(err.Error())
+		}
 		return
 	}
 
@@ -59,20 +63,20 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err := helper.WriteJsonError(w, err, 500); err != nil {
 			slog.Warn(err.Error())
-			return
 		}
+		return
 	}
 
-	job, err := h.Repo.SelectFromId(h.Ctx, int64(id))
+	job, errSelect := h.Repo.SelectFromId(h.Ctx, int64(id))
 
-	if err != nil {
-		if err := helper.WriteJsonError(w, err, 500); err != nil {
+	if errSelect != nil {
+		if err := helper.WriteJsonError(w, errSelect, 500); err != nil {
 			slog.Warn(err.Error())
-			return
 		}
+		return
 	}
 
-	if err := helper.WriteJson(w, job, 200); err != nil {
+	if err := helper.WriteJson(w, job, http.StatusOK); err != nil {
 		slog.Warn(err.Error())
 		return
 	}
