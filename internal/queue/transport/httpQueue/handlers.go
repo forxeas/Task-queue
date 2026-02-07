@@ -19,8 +19,15 @@ type Handler struct {
 	Repo repository.Repository
 }
 
-func NewHandler(ctx context.Context, Repo repository.Repository) *Handler {
-	return &Handler{Ctx: ctx, Repo: Repo}
+func NewHandler(ctx context.Context, Repo *repository.Repository) *Handler {
+	return &Handler{Ctx: ctx, Repo: *Repo}
+}
+
+func (h *Handler) RegisterRoute(r *mux.Router) {
+	jobs := r.PathPrefix("/jobs").Subrouter()
+
+	jobs.HandleFunc("", h.AddNewTask)
+	jobs.HandleFunc("/{id}", h.GetJob)
 }
 
 func (h *Handler) AddNewTask(w http.ResponseWriter, r *http.Request) {

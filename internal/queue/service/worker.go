@@ -9,11 +9,11 @@ import (
 )
 
 type Worker struct {
-	repo repository.Repository
+	repo *repository.Repository
 	ch   <-chan models.Jobs
 }
 
-func NewWorker(repo repository.Repository, ch chan models.Jobs) *Worker {
+func NewWorker(repo *repository.Repository, ch chan models.Jobs) *Worker {
 	return &Worker{repo: repo, ch: ch}
 }
 

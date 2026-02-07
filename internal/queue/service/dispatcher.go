@@ -10,10 +10,10 @@ import (
 
 type Dispatcher struct {
 	Ch   chan models.Jobs
-	Repo repository.Repository
+	Repo *repository.Repository
 }
 
-func NewDispatcher(ch chan models.Jobs, repo repository.Repository) *Dispatcher {
+func NewDispatcher(ch chan models.Jobs, repo *repository.Repository) *Dispatcher {
 	return &Dispatcher{Ch: ch, Repo: repo}
 }
 

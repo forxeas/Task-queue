@@ -20,7 +20,7 @@ type JobsDTO struct {
 
 func NewJobsResponse(job models.Jobs) *JobsDTO {
 	return &JobsDTO{
-		Id:          job.Id,
+		Id:          *job.Id,
 		Type:        job.Type,
 		Payload:     job.Payload,
 		Status:      string(job.Status),
