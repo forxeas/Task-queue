@@ -27,7 +27,7 @@ func (w Worker) Start(ctx context.Context) {
 				if err := w.repo.MarkJobSuccess(ctx, int64(*job.Id)); err != nil {
 					panic(err)
 				}
-				return
+				continue
 			}
 
 			attempts := job.Attempts + 1

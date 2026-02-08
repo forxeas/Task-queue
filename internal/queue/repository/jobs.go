@@ -2,13 +2,10 @@ package repository
 
 import (
 	"context"
-	"log/slog"
 	"task-queue/internal/db"
 	"task-queue/internal/queue/repository/models"
 	"task-queue/internal/queue/transport/dto/request"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 type Repository struct {
@@ -79,22 +76,27 @@ func (r *Repository) UpdateJob(ctx context.Context, model models.Jobs) (*models.
 }
 
 func (r *Repository) SelectJobs(ctx context.Context) ([]*models.Jobs, error) {
-	tx, err := r.Db.Conn.Begin(ctx)
-	defer func(tx pgx.Tx, ctx context.Context) {
-		err := tx.Rollback(ctx)
-		if err != nil {
-			slog.Error(err.Error())
-		}
-	}(tx, ctx)
-
 	jobs := make([]*models.Jobs, 0)
-	sql := `SELECT * FROM jobs 
-         	WHERE status = $1 AND available_at <= now()
-         	ORDER BY created_at
-         	LIMIT 100
-         	FOR UPDATE SKIP LOCKED`
+	sql := `WITH picked AS (
+				SELECT * FROM jobs 
+         		WHERE status = $1 AND available_at <= now()
+         		ORDER BY created_at
+         		LIMIT 100
+         		FOR UPDATE SKIP LOCKED
+			)
+			UPDATE jobs AS j FROM picked
+			SET status = $2, updated_at = now()
+			WHERE j.id = picked.id
+			RETURNING 
+				j.id, j.type, 
+				j.status, j.payload,
+				j.attempts, 
+				j.max_attempts, 
+				j.available_at, 
+				j.created_at,
+				j.updated_at`
 
-	rows, err := r.Db.Conn.Query(ctx, sql, models.StatusPending)
+	rows, err := r.Db.Conn.Query(ctx, sql, models.StatusPending, models.StatusInProgressed)
 
 	if err != nil {
 		return jobs, err
@@ -121,7 +123,7 @@ func (r *Repository) SelectJobs(ctx context.Context) ([]*models.Jobs, error) {
 		jobs = append(jobs, &job)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -156,7 +158,7 @@ func (r *Repository) MarkJobSuccess(ctx context.Context, id int64) error {
 }
 
 func (r *Repository) MarkJobFailed(ctx context.Context, id int64) error {
-	sql := `UPDATE jobs SET status = $1 WHERE id = $2`
+	sql := `UPDATE jobs SET status = $1, updated_at = now() WHERE id = $2`
 
 	cmd, err := r.Db.Conn.Exec(ctx, sql, models.StatusFailed, id)
 	return checkErr(cmd, err)

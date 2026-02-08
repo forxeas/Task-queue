@@ -12,7 +12,7 @@ const (
 	StatusPending      Status = "pending"
 	StatusFailed       Status = "failed"
 	StatusDone         Status = "done"
-	StatusInProgressed Status = "InProgressed"
+	StatusInProgressed Status = "in_progressed"
 )
 
 type Jobs struct {
